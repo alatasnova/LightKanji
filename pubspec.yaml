@@ -1,0 +1,28 @@
+name: light_kanji
+description: Сфокусированное изучение кандзи с локальным словарём.
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: "^3.5.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  package_info_plus: ^8.3.0
+  shared_preferences: ^2.3.5
+  sqlite3: ^2.7.6
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/dictionaries/kanji_jlpt_only.json
+    - assets/dictionaries/jmdict_kanji_index.json
+    - assets/dictionaries/jmdict_meta.json
+    - assets/dictionaries/pronounce_vocab.json
+    - assets/dictionaries/kanjidb.sqlite
