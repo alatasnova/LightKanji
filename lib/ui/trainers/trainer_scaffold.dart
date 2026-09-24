@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/romaji/kana_romaji.dart';
@@ -37,6 +38,7 @@ class _TrainerScaffoldState extends State<TrainerScaffold>
   late final AnimationController _success;
   String? _revealed;
   bool _green = false;
+  int _failedAttempts = 0;
 
   @override
   void initState() {
@@ -59,6 +61,7 @@ class _TrainerScaffoldState extends State<TrainerScaffold>
       _controller.clear();
       _revealed = null;
       _green = false;
+      _failedAttempts = 0;
       _success.reset();
       WidgetsBinding.instance.addPostFrameCallback((_) => _requestFocus());
     }
@@ -92,6 +95,11 @@ class _TrainerScaffoldState extends State<TrainerScaffold>
         if (mounted) widget.onCorrect();
       });
     } else {
+      setState(() {
+        _controller.clear();
+        _revealed = null;
+        _failedAttempts++;
+      });
       widget.onError();
       _shake.forward(from: 0);
       _requestFocus();
@@ -104,17 +112,25 @@ class _TrainerScaffoldState extends State<TrainerScaffold>
       showDragHandle: true,
       isScrollControlled: true,
       builder: (ctx) {
-        return SafeArea(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: EdgeInsets.only(
-                left: 24,
-                right: 24,
-                bottom: MediaQuery.viewInsetsOf(ctx).bottom + 24,
+        return DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.52,
+          minChildSize: 0.18,
+          maxChildSize: 0.9,
+          shouldCloseOnMinExtent: true,
+          builder: (ctx, scrollController) {
+            return SafeArea(
+              child: SingleChildScrollView(
+                controller: scrollController,
+                padding: EdgeInsets.only(
+                  left: 24,
+                  right: 24,
+                  bottom: MediaQuery.viewInsetsOf(ctx).bottom + 24,
+                ),
+                child: widget.settingsBuilder(ctx),
               ),
-              child: widget.settingsBuilder(ctx),
-            ),
-          ),
+            );
+          },
         );
       },
     ).whenComplete(_requestFocus);
@@ -133,77 +149,100 @@ class _TrainerScaffoldState extends State<TrainerScaffold>
     return Column(
       children: [
         Expanded(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 900),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24),
-                child: prompt == null
-                    ? Text(
-                        widget.emptyMessage ??
-                            'Нет символов для выбранных настроек.',
-                        textAlign: TextAlign.center,
-                        style: theme.textTheme.titleMedium,
-                      )
-                    : Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 200),
-                            switchInCurve: Curves.easeOut,
-                            switchOutCurve: Curves.easeIn,
-                            transitionBuilder: (Widget child, Animation<double> animation) {
-                              return ScaleTransition(
-                                scale: animation,
-                                child: child,
-                              );
-                            },
-                            child: GestureDetector(
-                              key: ValueKey<String?>(prompt), 
-                              onLongPress: () => Clipboard.setData(ClipboardData(text: prompt)),
-                              child: SelectableText(
-                                prompt,
-                                textAlign: TextAlign.center,
-                                style: theme.textTheme.displayLarge?.copyWith(
-                                  fontSize: 128,
-                                  fontWeight: FontWeight.w400,
-                                  height: 1.1,
+          child: GestureDetector(
+            behavior: HitTestBehavior.translucent,
+            onVerticalDragEnd: (details) {
+              if ((details.primaryVelocity ?? 0) < -250) {
+                _openSettings();
+              }
+            },
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 900),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: prompt == null
+                      ? Text(
+                          widget.emptyMessage ??
+                              'Нет символов для выбранных настроек.',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.titleMedium,
+                        )
+                      : Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            AnimatedSwitcher(
+                              duration: const Duration(milliseconds: 200),
+                              switchInCurve: Curves.easeOut,
+                              switchOutCurve: Curves.easeIn,
+                              transitionBuilder:
+                                  (Widget child, Animation<double> animation) {
+                                return ScaleTransition(
+                                  scale: animation,
+                                  child: child,
+                                );
+                              },
+                              child: GestureDetector(
+                                key: ValueKey<String?>(prompt),
+                                onLongPress: () => Clipboard.setData(
+                                    ClipboardData(text: prompt)),
+                                child: SelectableText(
+                                  prompt,
+                                  textAlign: TextAlign.center,
+                                  style: theme.textTheme.displayLarge?.copyWith(
+                                    fontSize: 128,
+                                    fontWeight: FontWeight.w400,
+                                    height: 1.1,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          if (widget.subtitle != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8, bottom: 8),
-                              child: Text(
-                                widget.subtitle!,
-                                style: theme.textTheme.bodySmall?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
+                            const SizedBox(height: 40),
+                            if (widget.subtitle != null)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: 14),
+                                child: Text(
+                                  widget.subtitle!,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
                                 ),
                               ),
+                            _InputField(
+                              controller: _controller,
+                              focusNode: _focus,
+                              enabled: true,
+                              shake: _shake,
+                              success: _success,
+                              green: _green,
+                              onSubmitted: _submit,
+                              onTapOutside: (_) => _requestFocus(),
                             ),
-                          _InputField(
-                            controller: _controller,
-                            focusNode: _focus,
-                            enabled: true,
-                            shake: _shake,
-                            success: _success,
-                            green: _green,
-                            onSubmitted: _submit,
-                            onTapOutside: (_) => _requestFocus(),
-                          ),
-                          if (_revealed != null)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 24),
-                              child: Text(
-                                _revealed!,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  color: theme.colorScheme.primary,
+                            if (_failedAttempts > 1 && _isDesktop)
+                              Padding(
+                                padding: const EdgeInsets.only(top: 24),
+                                child: Text(
+                                  'Нажмите Enter на пустом поле, чтобы увидеть ответ.',
+                                  textAlign: TextAlign.center,
+                                  style: theme.textTheme.bodySmall?.copyWith(
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
                                 ),
                               ),
-                            ),
-                        ],
-                      ),
+                            if (_revealed != null)
+                              Padding(
+                                padding:
+                                    const EdgeInsets.only(top: 16, bottom: 24),
+                                child: Text(
+                                  _revealed!,
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                ),
               ),
             ),
           ),
@@ -217,6 +256,16 @@ class _TrainerScaffoldState extends State<TrainerScaffold>
       ],
     );
   }
+
+  bool get _isDesktop =>
+      kIsWeb ||
+      switch (defaultTargetPlatform) {
+        TargetPlatform.windows ||
+        TargetPlatform.linux ||
+        TargetPlatform.macOS =>
+          true,
+        _ => false,
+      };
 }
 
 class _InputField extends StatelessWidget {
@@ -262,11 +311,11 @@ class _InputField extends StatelessWidget {
               maxWidth: 250,
             ),
             child: TextField(
-                controller: controller,
-                focusNode: focusNode,
-                enabled: enabled,
-                autofocus: true,
-                textAlign: TextAlign.center,
+              controller: controller,
+              focusNode: focusNode,
+              enabled: enabled,
+              autofocus: true,
+              textAlign: TextAlign.center,
               textInputAction: TextInputAction.done,
               autocorrect: false,
               enableSuggestions: false,
@@ -275,15 +324,24 @@ class _InputField extends StatelessWidget {
               ],
               decoration: InputDecoration(
                 hintText: 'Ромадзи',
-                border: const OutlineInputBorder(),
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 10,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
                 enabledBorder: border == null
                     ? null
                     : OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(color: border, width: 2),
                       ),
                 focusedBorder: border == null
                     ? null
                     : OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(color: border, width: 2.4),
                       ),
               ),

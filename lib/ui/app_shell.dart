@@ -25,6 +25,15 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int _index = 0;
 
+  late final List<Widget> _pages = [
+    KanaTrainerPage(settings: widget.settings),
+    KanjiReadingTrainerPage(
+      settings: widget.settings,
+      database: widget.database,
+    ),
+    DictionaryPage(database: widget.database),
+  ];
+
   static const _destinations = [
     _Dest('Кана', Icons.spa_outlined, Icons.spa),
     _Dest('Чтение', Icons.translate_outlined, Icons.translate),
@@ -36,16 +45,7 @@ class _AppShellState extends State<AppShell> {
     final width = MediaQuery.sizeOf(context).width;
     final useRail = width >= 700;
 
-    final pages = [
-      KanaTrainerPage(settings: widget.settings),
-      KanjiReadingTrainerPage(
-        settings: widget.settings,
-        database: widget.database,
-      ),
-      DictionaryPage(database: widget.database),
-    ];
-
-    final body = IndexedStack(index: _index, children: pages);
+    final body = IndexedStack(index: _index, children: _pages);
 
     return CallbackShortcuts(
       bindings: {

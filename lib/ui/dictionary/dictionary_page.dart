@@ -15,6 +15,13 @@ class DictionaryPage extends StatefulWidget {
 class _DictionaryPageState extends State<DictionaryPage> {
   final _query = TextEditingController();
   final _levels = <int>{1, 2, 3, 4, 5};
+  late List<KanjiEntry> _results;
+
+  @override
+  void initState() {
+    super.initState();
+    _results = _search();
+  }
 
   @override
   void dispose() {
@@ -22,12 +29,19 @@ class _DictionaryPageState extends State<DictionaryPage> {
     super.dispose();
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final results = widget.database.search(
+  List<KanjiEntry> _search() {
+    return widget.database.search(
       query: _query.text,
       jlptLevels: _levels,
     );
+  }
+
+  void _refreshResults() {
+    setState(() => _results = _search());
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       children: [
         Padding(
@@ -36,7 +50,7 @@ class _DictionaryPageState extends State<DictionaryPage> {
             controller: _query,
             leading: const Icon(Icons.search),
             hintText: 'Кандзи, чтение, слово или значение',
-            onChanged: (_) => setState(() {}),
+            onChanged: (_) => _refreshResults(),
           ),
         ),
         SingleChildScrollView(
@@ -51,13 +65,12 @@ class _DictionaryPageState extends State<DictionaryPage> {
                     label: Text('N$level'),
                     selected: _levels.contains(level),
                     onSelected: (selected) {
-                      setState(() {
-                        if (selected) {
-                          _levels.add(level);
-                        } else if (_levels.length > 1) {
-                          _levels.remove(level);
-                        }
-                      });
+                      if (selected) {
+                        _levels.add(level);
+                      } else if (_levels.length > 1) {
+                        _levels.remove(level);
+                      }
+                      _refreshResults();
                     },
                   ),
                 ),
@@ -66,13 +79,13 @@ class _DictionaryPageState extends State<DictionaryPage> {
         ),
         const SizedBox(height: 8),
         Expanded(
-          child: results.isEmpty
+          child: _results.isEmpty
               ? const Center(child: Text('Ничего не найдено'))
               : ListView.builder(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
-                  itemCount: results.length,
+                  itemCount: _results.length,
                   itemBuilder: (context, index) =>
-                      _EntryCard(entry: results[index]),
+                      _EntryCard(entry: _results[index]),
                 ),
         ),
       ],
